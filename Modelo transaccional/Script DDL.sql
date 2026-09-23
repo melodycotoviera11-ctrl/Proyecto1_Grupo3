@@ -2,7 +2,7 @@
 -- PROYECTO 01 - INTELIGENCIA DE NEGOCIOS
 -- GRUPO 3 - CADENA HOTELERA
 -- SCRIPT DDL - MODELO TRANSACCIONAL
--- Elaborado por: Tamara Ortega, Daniela Sánchez, Rachel Rojas, Raúl Rojas y Melody Coto
+-- Elaborado por: Tamara Ortega, Daniela Sánchez, Rachel Rojas, Raúl Barrios y Melody Coto
 -- ============================================================
 
 -- Database: cadena_hotelera_g3
