@@ -1,0 +1,456 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pipeline>
+  <info>
+    <capture_transform_performance>N</capture_transform_performance>
+    <transform_performance_capturing_delay>1000</transform_performance_capturing_delay>
+    <transform_performance_capturing_size_limit>100</transform_performance_capturing_size_limit>
+    <pipeline_type>Normal</pipeline_type>
+    <pipeline_status>-1</pipeline_status>
+    <parameters/>
+    <name>New pipeline</name>
+    <name_sync_with_filename>Y</name_sync_with_filename>
+    <created_user>-</created_user>
+    <modified_user>-</modified_user>
+    <created_date>2026/10/04 23:12:53.970</created_date>
+    <modified_date>2026/10/04 23:12:53.970</modified_date>
+  </info>
+  <transform>
+    <type>TableInput</type>
+    <name>Extraer_Reservas_Base</name>
+    <sql>SELECT
+    r.id_reserva,
+    r.id_canal,
+    h.id_hotel,
+
+    TO_CHAR(r.fecha_reserva, 'YYYYMMDD')::INTEGER
+        AS id_fecha_reserva,
+
+    dr.id_habitacion,
+
+    r.id_huesped AS id_cliente,
+
+    dr.id_tarifa,
+
+    CASE
+        WHEN e.fecha_checkin IS NOT NULL
+        THEN TO_CHAR(e.fecha_checkin, 'YYYYMMDD')::INTEGER
+        ELSE TO_CHAR(r.fecha_entrada_prevista, 'YYYYMMDD')::INTEGER
+    END AS id_fecha_checkin,
+
+    CASE
+        WHEN e.fecha_checkin IS NOT NULL
+         AND e.fecha_checkout IS NOT NULL
+        THEN e.fecha_checkout - e.fecha_checkin
+        ELSE dr.cantidad_noches
+    END AS duracion_estadia_noches,
+
+    dr.subtotal_alojamiento AS ingreso_alojamiento,
+
+    COALESCE(svc.ingreso_desayuno, 0) AS ingreso_desayuno,
+    COALESCE(svc.ingreso_almuerzo, 0) AS ingreso_almuerzo,
+    COALESCE(svc.ingreso_cena, 0) AS ingreso_cena,
+    COALESCE(svc.ingreso_spa, 0) AS ingreso_spa,
+    COALESCE(svc.ingreso_lavanderia, 0) AS ingreso_lavanderia,
+    COALESCE(svc.ingreso_tour, 0) AS ingreso_tour,
+    COALESCE(svc.ingreso_transporte, 0) AS ingreso_transporte,
+    COALESCE(svc.ingreso_room_service, 0) AS ingreso_room_service,
+
+    COALESCE(svc.ingreso_servicios_complementarios, 0)
+        AS ingreso_servicios_complementarios,
+
+    CASE
+        WHEN r.estado = 'CANCELADA' THEN TRUE
+        ELSE FALSE
+    END AS es_cancelacion,
+
+    CASE
+        WHEN r.estado = 'NO_SHOW' THEN TRUE
+        ELSE FALSE
+    END AS es_noshow
+
+FROM operacional.reserva r
+
+INNER JOIN operacional.detalle_reserva dr
+    ON r.id_reserva = dr.id_reserva
+
+INNER JOIN operacional.habitacion hab
+    ON dr.id_habitacion = hab.id_habitacion
+
+INNER JOIN operacional.hotel h
+    ON hab.id_hotel = h.id_hotel
+
+LEFT JOIN operacional.estadia e
+    ON dr.id_detalle_reserva = e.id_detalle_reserva
+
+LEFT JOIN (
+    SELECT
+        dr2.id_reserva,
+
+        SUM(CASE
+            WHEN s.nombre = 'Desayuno'
+            THEN cs.total
+            ELSE 0
+        END) AS ingreso_desayuno,
+
+        SUM(CASE
+            WHEN s.nombre = 'Almuerzo'
+            THEN cs.total
+            ELSE 0
+        END) AS ingreso_almuerzo,
+
+        SUM(CASE
+            WHEN s.nombre = 'Cena'
+            THEN cs.total
+            ELSE 0
+        END) AS ingreso_cena,
+
+        SUM(CASE
+            WHEN s.nombre = 'Spa'
+            THEN cs.total
+            ELSE 0
+        END) AS ingreso_spa,
+
+        SUM(CASE
+            WHEN s.nombre = 'Lavandería'
+            THEN cs.total
+            ELSE 0
+        END) AS ingreso_lavanderia,
+
+        SUM(CASE
+            WHEN s.nombre = 'Tour'
+            THEN cs.total
+            ELSE 0
+        END) AS ingreso_tour,
+
+        SUM(CASE
+            WHEN s.nombre = 'Transporte'
+            THEN cs.total
+            ELSE 0
+        END) AS ingreso_transporte,
+
+        SUM(CASE
+            WHEN s.nombre = 'Room Service'
+            THEN cs.total
+            ELSE 0
+        END) AS ingreso_room_service,
+
+        SUM(cs.total) AS ingreso_servicios_complementarios
+
+    FROM operacional.detalle_reserva dr2
+
+    INNER JOIN operacional.estadia e2
+        ON dr2.id_detalle_reserva = e2.id_detalle_reserva
+
+    INNER JOIN operacional.consumo_servicio cs
+        ON e2.id_estadia = cs.id_estadia
+
+    INNER JOIN operacional.servicio s
+        ON cs.id_servicio = s.id_servicio
+
+    GROUP BY dr2.id_reserva
+) svc
+    ON r.id_reserva = svc.id_reserva
+
+ORDER BY r.id_reserva;</sql>
+    <limit>0</limit>
+    <execute_each_row>N</execute_each_row>
+    <variables_active>N</variables_active>
+    <connection>PostgreSQL_CadenaHotelera</connection>
+    <lookup/>
+    <sql_from_file/>
+    <distribute>Y</distribute>
+    <copies>1</copies>
+    <GUI>
+      <xloc>112</xloc>
+      <yloc>208</yloc>
+    </GUI>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <attributes/>
+  </transform>
+  <transform>
+    <type>SelectValues</type>
+    <name>Seleccionar_Campos_Fact</name>
+    <fields>
+      <field>
+        <name>id_reserva</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>id_canal</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>id_hotel</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>id_fecha_reserva</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>id_habitacion</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>id_cliente</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>id_tarifa</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>id_fecha_checkin</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>duracion_estadia_noches</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_alojamiento</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_desayuno</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_almuerzo</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_cena</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_spa</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_lavanderia</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_tour</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_transporte</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_room_service</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>ingreso_servicios_complementarios</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>es_cancelacion</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <field>
+        <name>es_noshow</name>
+        <rename/>
+        <length>-2</length>
+        <precision>-2</precision>
+      </field>
+      <select_unspecified>N</select_unspecified>
+    </fields>
+    <distribute>Y</distribute>
+    <copies>1</copies>
+    <GUI>
+      <xloc>320</xloc>
+      <yloc>208</yloc>
+    </GUI>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <attributes/>
+  </transform>
+  <transform>
+    <type>TableOutput</type>
+    <name>Cargar_Fact_Reservas</name>
+    <connection>PostgreSQL_CadenaHotelera</connection>
+    <schema>dimensional</schema>
+    <table>fact_reservas</table>
+    <commit>1000</commit>
+    <truncate>N</truncate>
+    <only_when_have_rows>N</only_when_have_rows>
+    <ignore_errors>N</ignore_errors>
+    <use_batch>Y</use_batch>
+    <partitioning_enabled>N</partitioning_enabled>
+    <partitioning_field/>
+    <partitioning_daily>N</partitioning_daily>
+    <partitioning_monthly>Y</partitioning_monthly>
+    <tablename_in_field>N</tablename_in_field>
+    <tablename_field/>
+    <tablename_in_table>Y</tablename_in_table>
+    <return_keys>N</return_keys>
+    <return_field/>
+    <specify_fields>Y</specify_fields>
+    <auto_update_table_structure>N</auto_update_table_structure>
+    <always_drop_and_recreate>N</always_drop_and_recreate>
+    <add_columns>N</add_columns>
+    <drop_columns>N</drop_columns>
+    <change_column_types>N</change_column_types>
+    <fields>
+      <field>
+        <stream_name>id_reserva</stream_name>
+        <column_name>id_reserva</column_name>
+      </field>
+      <field>
+        <stream_name>id_canal</stream_name>
+        <column_name>id_canal</column_name>
+      </field>
+      <field>
+        <stream_name>id_hotel</stream_name>
+        <column_name>id_hotel</column_name>
+      </field>
+      <field>
+        <stream_name>id_fecha_reserva</stream_name>
+        <column_name>id_fecha_reserva</column_name>
+      </field>
+      <field>
+        <stream_name>id_habitacion</stream_name>
+        <column_name>id_habitacion</column_name>
+      </field>
+      <field>
+        <stream_name>id_cliente</stream_name>
+        <column_name>id_cliente</column_name>
+      </field>
+      <field>
+        <stream_name>id_tarifa</stream_name>
+        <column_name>id_tarifa</column_name>
+      </field>
+      <field>
+        <stream_name>id_fecha_checkin</stream_name>
+        <column_name>id_fecha_checkin</column_name>
+      </field>
+      <field>
+        <stream_name>duracion_estadia_noches</stream_name>
+        <column_name>duracion_estadia_noches</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_alojamiento</stream_name>
+        <column_name>ingreso_alojamiento</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_desayuno</stream_name>
+        <column_name>ingreso_desayuno</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_almuerzo</stream_name>
+        <column_name>ingreso_almuerzo</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_cena</stream_name>
+        <column_name>ingreso_cena</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_spa</stream_name>
+        <column_name>ingreso_spa</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_lavanderia</stream_name>
+        <column_name>ingreso_lavanderia</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_tour</stream_name>
+        <column_name>ingreso_tour</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_transporte</stream_name>
+        <column_name>ingreso_transporte</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_room_service</stream_name>
+        <column_name>ingreso_room_service</column_name>
+      </field>
+      <field>
+        <stream_name>ingreso_servicios_complementarios</stream_name>
+        <column_name>ingreso_servicios_complementarios</column_name>
+      </field>
+      <field>
+        <stream_name>es_cancelacion</stream_name>
+        <column_name>es_cancelacion</column_name>
+      </field>
+      <field>
+        <stream_name>es_noshow</stream_name>
+        <column_name>es_noshow</column_name>
+      </field>
+    </fields>
+    <distribute>Y</distribute>
+    <copies>1</copies>
+    <GUI>
+      <xloc>528</xloc>
+      <yloc>208</yloc>
+    </GUI>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <attributes/>
+  </transform>
+  <order>
+    <hop>
+      <from>Extraer_Reservas_Base</from>
+      <to>Seleccionar_Campos_Fact</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>Seleccionar_Campos_Fact</from>
+      <to>Cargar_Fact_Reservas</to>
+      <enabled>Y</enabled>
+    </hop>
+  </order>
+  <notepads/>
+  <attributes/>
+  <transform_error_handling/>
+</pipeline>
